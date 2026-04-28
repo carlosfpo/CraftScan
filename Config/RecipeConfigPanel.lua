@@ -220,6 +220,11 @@ function CraftScanRecipeConfigPanelMixin:SetupRecipeIcon()
             self.IconSubLabel:SetText(
                 CraftScan.RecipeStateName(self.configInfo.recipeConfig, self.configInfo.profConfig)
             )
+
+            -- Auto-populate keywords with the item name if keywords have never been set.
+            if self.configInfo.recipeConfig.keywords == nil then
+                self.configInfo.recipeConfig.keywords = item:GetItemName()
+            end
         end)
     end
 

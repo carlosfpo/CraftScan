@@ -1034,7 +1034,11 @@ local function BuildRawGreeting(crafterFullName, profID, itemID, itemLink, recip
     end
 
     if alt_craft then
-        Greeting(GetGreeting('GREETING_ALT_SUFFIX'))
+        local greetingSettings = CraftScan.DB.settings.greeting or {}
+        local suffix_key = itemID and 'send_alt_suffix_can_craft' or 'send_alt_suffix_has_prof'
+        if greetingSettings[suffix_key] ~= false then
+            Greeting(GetGreeting('GREETING_ALT_SUFFIX'))
+        end
     end
 
     return FinalGreeting(context), alt_craft
@@ -1286,12 +1290,51 @@ function CraftScan.OnMessage(event, message, customer, customerGuid, overrides)
     return false
 end
 
+local function ShouldProcessChatEvent(event, ...)
+    local debugPartyMode = CraftScan.DB.settings.debug_scan_party_mode == true
+
+    if event == 'CHAT_MSG_CHANNEL' then
+        -- Keep channel scanning focused on Trade chat in all modes.
+        local channelName = select(4, ...)
+        local channelBaseName = select(9, ...)
+        local normalized = string.lower(channelBaseName or channelName or '')
+        local localizedTradeName = string.lower(_G.TRADE or 'trade')
+        return
+            string.find(normalized, localizedTradeName, 1, true) ~= nil
+            or string.find(normalized, 'trade', 1, true) ~= nil
+    end
+
+    if event == 'CHAT_MSG_PARTY' or event == 'CHAT_MSG_PARTY_LEADER' then
+        return debugPartyMode
+    end
+
+    return true
+end
+
 local function OnMessage_(self, event, ...)
     local message, customer = ...
 
     if issecretvalue(message) then return end
 
+    if not ShouldProcessChatEvent(event, ...) then
+        return
+    end
+
     local customerGuid = select(12, ...)
+
+    -- In debug party mode we want local test messages to behave like customer
+    -- requests so users can test end-to-end while still scanning Trade chat.
+    if
+        (event == 'CHAT_MSG_PARTY' or event == 'CHAT_MSG_PARTY_LEADER')
+        and CraftScan.DB.settings.debug_scan_party_mode
+        and (
+            customer == CraftScan.GetPlayerName()
+            or customer == CraftScan.GetPlayerName(true)
+        )
+    then
+        customerGuid = UnitGUID('player')
+    end
+
     CraftScan.OnMessage(event, message, customer, customerGuid)
 end
 
@@ -1351,6 +1394,7 @@ local function UpdateScannerEventRegistry(...)
         if not registered then
             frame:RegisterEvent('CHAT_MSG_SAY')
             frame:RegisterEvent('CHAT_MSG_PARTY')
+            frame:RegisterEvent('CHAT_MSG_PARTY_LEADER')
             frame:RegisterEvent('CHAT_MSG_CHANNEL')
             frame:RegisterEvent('CHAT_MSG_GUILD')
             frame:RegisterEvent('CHAT_MSG_WHISPER')
@@ -1363,6 +1407,7 @@ local function UpdateScannerEventRegistry(...)
             registered = false
             frame:UnregisterEvent('CHAT_MSG_SAY')
             frame:UnregisterEvent('CHAT_MSG_PARTY')
+            frame:UnregisterEvent('CHAT_MSG_PARTY_LEADER')
             frame:UnregisterEvent('CHAT_MSG_CHANNEL')
             frame:UnregisterEvent('CHAT_MSG_GUILD')
             frame:UnregisterEvent('CHAT_MSG_WHISPER')

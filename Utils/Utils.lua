@@ -84,8 +84,20 @@ end
 
 function CraftScan.Utils.SendResponses(responses, customer)
     RobotsDotTxtAPI.NotifyCustomer(customer, 'CraftScan')
+
+    local debugPartyMode = CraftScan.DB
+        and CraftScan.DB.settings
+        and CraftScan.DB.settings.debug_scan_party_mode
+
+    local sendToParty = debugPartyMode and IsInGroup(LE_PARTY_CATEGORY_HOME)
+    local chatType = sendToParty and 'PARTY' or 'WHISPER'
+
     for _, response in pairs(responses) do
-        SendChatMessage(response, 'WHISPER', select(2, GetDefaultLanguage()), customer)
+        if chatType == 'PARTY' then
+            SendChatMessage(response, 'PARTY')
+        else
+            SendChatMessage(response, 'WHISPER', select(2, GetDefaultLanguage()), customer)
+        end
     end
 end
 

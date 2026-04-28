@@ -90,10 +90,20 @@
                             <Anchor point="TOPLEFT" relativeKey="$parent.GREETING_ALT_HAS_PROF" relativePoint="BOTTOMLEFT"/>
                         </Anchors>
                     </Frame>
+                    <Frame parentKey="SendAltSuffixCanCraft" inherits="CraftScanCheckButtonTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeKey="$parent.GREETING_ALT_SUFFIX" relativePoint="BOTTOMLEFT"/>
+                        </Anchors>
+                    </Frame>
+                    <Frame parentKey="SendAltSuffixHasProf" inherits="CraftScanCheckButtonTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeKey="$parent.SendAltSuffixCanCraft" relativePoint="BOTTOMLEFT"/>
+                        </Anchors>
+                    </Frame>
                     <Frame parentKey="GREETING_BUSY" inherits="CraftScanTextInputTemplate">
                         <Size x="335" y="65"/>
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativeKey="$parent.GREETING_ALT_SUFFIX" relativePoint="BOTTOMLEFT"/>
+                            <Anchor point="TOPLEFT" relativeKey="$parent.SendAltSuffixHasProf" relativePoint="BOTTOMLEFT"/>
                         </Anchors>
                     </Frame>
                 </Frames>

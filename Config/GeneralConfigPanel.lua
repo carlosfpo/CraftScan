@@ -77,15 +77,32 @@ function CraftScanGreetingConfigPanelMixin:Init()
     }) do
         CraftScan.SetupTextInput(self, self[key], key)
     end
+
+    CraftScan.SetupCheckBox(self, self.SendAltSuffixCanCraft, 'send_alt_suffix_can_craft', 240)
+    CraftScan.SetupCheckBox(self, self.SendAltSuffixHasProf, 'send_alt_suffix_has_prof', 240)
 end
 
+local CHECKBOX_KEYS = {
+    send_alt_suffix_can_craft = true,
+    send_alt_suffix_has_prof = true,
+}
+
 function CraftScanGreetingConfigPanelMixin:GetConfigValue(keyword)
+    if CHECKBOX_KEYS[keyword] then
+        local sv = CraftScan.DB.settings.greeting or {}
+        return sv[keyword] ~= false  -- default true
+    end
     local sv = CraftScan.DB.settings.greeting or {}
     return sv[keyword] or L(LID[keyword])
 end
 
 function CraftScanGreetingConfigPanelMixin:UpdateConfigValue(keyword, value)
     local sv = CraftScan.Utils.saved(CraftScan.DB.settings, 'greeting', {})
+    if CHECKBOX_KEYS[keyword] then
+        sv[keyword] = value
+        CraftScanComm:ShareCustomGreeting(sv)
+        return
+    end
     if value == '' then
         sv[keyword] = nil
     else
@@ -105,6 +122,7 @@ function CraftScanGreetingConfigPanelMixin:IncludeContextInAutoComplete(keyword)
 end
 
 function CraftScanGreetingConfigPanelMixin:Validate(keyword, user_value, reporter)
+    if not self.greetings[keyword] then return end
     value = CraftScan.Config.SubstituteTags(user_value)
 
     local extra_placeholders = {}

@@ -366,6 +366,27 @@ CraftScan.Utils.onLoad(function()
     end
     do
         local GetValue = function()
+            return CraftScan.DB.settings.debug_scan_party_mode
+        end
+        local SetValue = function(value)
+            CraftScan.DB.settings.debug_scan_party_mode = value
+        end
+
+        local setting = Settings.RegisterProxySetting(
+            category,
+            'CRAFTSCAN_DEBUG_SCAN_PARTY_MODE',
+            Settings.VarType.Boolean,
+            L('Debug mode: Party chat scanning'),
+            Settings.Default.False,
+            GetValue,
+            SetValue
+        )
+        local initializer =
+            Settings.CreateCheckbox(category, setting, L('Debug mode: Party chat scanning'))
+        initializer:AddSearchTags(L(LID.CRAFT_SCAN))
+    end
+    do
+        local GetValue = function()
             return CraftScan.DB.settings.show_chat_orders_tab
         end
         local SetValue = function(value)
