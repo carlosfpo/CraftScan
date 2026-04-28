@@ -46,6 +46,7 @@ local contextSensitiveTags = {
     profession = true,
     profession_link = true,
     crafter = true,
+    craft_type = true,
     general_greeting = true,
 }
 

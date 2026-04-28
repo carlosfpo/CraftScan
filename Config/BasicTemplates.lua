@@ -23,7 +23,18 @@ function CraftScan.SetupButton(field, keyword, OnClick)
 end
 
 function CraftScan.SetupCheckBox(panel, field, keyword, size)
-    local title = L('dialog.' .. keyword)
+    local function HumanizeKeyword(text)
+        local spaced = text:gsub('[_.]+', ' ')
+        return (spaced:gsub('(%a)([%w]*)', function(first, rest)
+            return string.upper(first) .. string.lower(rest)
+        end))
+    end
+
+    local titleKey = 'dialog.' .. keyword
+    local title = L(titleKey)
+    if title == titleKey then
+        title = HumanizeKeyword(keyword)
+    end
     field.Title:SetText(title)
 
     field.Act:SetChecked(panel:GetConfigValue(keyword))
@@ -76,8 +87,20 @@ end
 function CraftScan.SetupTextInput(panel, field, keyword)
     InputScrollFrame_OnLoad(field.Expression)
 
+    local function HumanizeKeyword(text)
+        local spaced = text:gsub('[_.]+', ' ')
+        return (spaced:gsub('(%a)([%w]*)', function(first, rest)
+            return string.upper(first) .. string.lower(rest)
+        end))
+    end
+
     if field.Title then
-        field.Title:SetText(L('dialog.' .. keyword))
+        local titleKey = 'dialog.' .. keyword
+        local title = L(titleKey)
+        if title == titleKey then
+            title = HumanizeKeyword(keyword)
+        end
+        field.Title:SetText(title)
     end
     local value = GetDisplayValue(panel, keyword)
     field.Expression.EditBox:SetText(value)

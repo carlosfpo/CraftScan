@@ -32,23 +32,42 @@ end
 
 CraftScanGeneralConfigMatchingMixin = {}
 
+local function MatchingSettingKey(keyword)
+    if keyword == 'craft_inclusions' then
+        return 'inclusions'
+    end
+    return keyword
+end
+
 function CraftScanGeneralConfigMatchingMixin:Init()
     self.tabGroup = self:GetParent():TabGroup()
     self.Title:SetText(L('Base Filters'))
-    CraftScan.SetupTextInput(self, self.Keywords, 'inclusions')
+    CraftScan.SetupTextInput(self, self.Keywords, 'craft_inclusions')
+    CraftScan.SetupTextInput(self, self.RecraftKeywords, 'recraft_inclusions')
     CraftScan.SetupTextInput(self, self.Exclusions, 'exclusions')
 end
 
 function CraftScanGeneralConfigMatchingMixin:GetConfigValue(keyword)
-    return CraftScan.DB.settings[keyword]
+    return CraftScan.DB.settings[MatchingSettingKey(keyword)]
 end
 
 function CraftScanGeneralConfigMatchingMixin:UpdateConfigValue(keyword, value)
-    CraftScan.DB.settings[keyword] = value
+    CraftScan.DB.settings[MatchingSettingKey(keyword)] = value
 end
 
 function CraftScanGeneralConfigMatchingMixin:OnConfigChange()
     CraftScan.Config.OnConfigChange()
+end
+
+function CraftScanGeneralConfigMatchingMixin:GetInstructions(keyword)
+    local craftKeywords, recraftKeywords = CraftScan.Utils.GetDefaultMatchKeywords()
+    if keyword == 'craft_inclusions' then
+        return craftKeywords
+    end
+    if keyword == 'recraft_inclusions' then
+        return recraftKeywords
+    end
+    return nil
 end
 
 CraftScanGreetingConfigPanelMixin = {}
@@ -57,14 +76,14 @@ function CraftScanGreetingConfigPanelMixin:Init()
     self.tabGroup = self:GetParent():TabGroup()
     self.Title:SetText(L('Customer Greetings'))
     self.greetings = {
-        ['GREETING_I_CAN_CRAFT_ITEM'] = { placeholders = { '{crafter}', '{item}' } },
+        ['GREETING_I_CAN_CRAFT_ITEM'] = { placeholders = { '{crafter}', '{item}', '{craft_type}' } },
         ['GREETING_I_HAVE_PROF'] = {
-            placeholders = { '{crafter}', '{profession}', '{profession_link}' },
+            placeholders = { '{crafter}', '{profession}', '{profession_link}', '{craft_type}' },
         },
-        ['GREETING_ALT_CAN_CRAFT_ITEM'] = { placeholders = { '{crafter}', '{item}' } },
-        ['GREETING_ALT_HAS_PROF'] = { placeholders = { '{crafter}', '{profession}' } },
-        ['GREETING_ALT_SUFFIX'] = { placeholders = { '{crafter}' } },
-        ['GREETING_BUSY'] = { placeholders = {} },
+        ['GREETING_ALT_CAN_CRAFT_ITEM'] = { placeholders = { '{crafter}', '{item}', '{craft_type}' } },
+        ['GREETING_ALT_HAS_PROF'] = { placeholders = { '{crafter}', '{profession}', '{craft_type}' } },
+        ['GREETING_ALT_SUFFIX'] = { placeholders = { '{crafter}', '{craft_type}' } },
+        ['GREETING_BUSY'] = { placeholders = { '{craft_type}' } },
     }
 
     for _, key in pairs({

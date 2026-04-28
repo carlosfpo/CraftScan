@@ -11,7 +11,7 @@
 
         <Frames>
             <Frame parentKey="Matching" mixin="CraftScanGeneralConfigMatchingMixin">
-                <Size x="350" y="250"/>
+                <Size x="350" y="330"/>
                 <Anchors>
                     <Anchor point="TOPLEFT"/>
                 </Anchors>
@@ -35,10 +35,16 @@
                             <Anchor point="LEFT" x="5"/>
                         </Anchors>
                     </Frame>
-                    <Frame parentKey="Exclusions" inherits="CraftScanTextInputTemplate">
+                    <Frame parentKey="RecraftKeywords" inherits="CraftScanTextInputTemplate">
                         <Size x="335" y="80"/>
                         <Anchors>
                             <Anchor point="TOPLEFT" relativeKey="$parent.Keywords" relativePoint="BOTTOMLEFT"/>
+                        </Anchors>
+                    </Frame>
+                    <Frame parentKey="Exclusions" inherits="CraftScanTextInputTemplate">
+                        <Size x="335" y="80"/>
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeKey="$parent.RecraftKeywords" relativePoint="BOTTOMLEFT"/>
                         </Anchors>
                     </Frame>
                 </Frames>

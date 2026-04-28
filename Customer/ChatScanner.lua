@@ -9,6 +9,9 @@ local saved = CraftScan.Utils.saved
 
 CraftScan.MessageType = EnumUtil.MakeEnum('General', 'Whisper')
 
+local REQUEST_TYPE_CRAFT = 'craft'
+local REQUEST_TYPE_RECRAFT = 'recraft'
+
 -- Split and normalize a comma separated list of strings
 local function ParseStringList(list)
     if not list then
@@ -94,7 +97,8 @@ local function resetConfig()
     config = {
         -- The message must match an inclusion and either a prof_keyword or an item
         exclusions = {},
-        inclusions = {},
+        craft_inclusions = {},
+        recraft_inclusions = {},
         prof_keywords = {},
         items = {},
     }
@@ -185,7 +189,8 @@ function CraftScan.Scanner.LoadConfig()
     resetConfig()
 
     config.exclusions = ParseStringList(CraftScan.DB.settings.exclusions)
-    config.inclusions = ParseStringList(CraftScan.DB.settings.inclusions)
+    config.craft_inclusions = ParseStringList(CraftScan.DB.settings.inclusions)
+    config.recraft_inclusions = ParseStringList(CraftScan.DB.settings.recraft_inclusions)
 
     -- Sort professions so that when we scan for generic keyword matches, we
     -- find the local charcter first, then the primary crafter. We ignore
@@ -674,12 +679,21 @@ end)
 local function GetCrafterForMessage(customer, message, overrides)
     message = string.lower(message)
 
+    local requestType = overrides and overrides.requestType
+    if not requestType then
+        if HasMatch(message, config.recraft_inclusions) then
+            requestType = REQUEST_TYPE_RECRAFT
+        elseif HasMatch(message, config.craft_inclusions) then
+            requestType = REQUEST_TYPE_CRAFT
+        end
+    end
+
     if not overrides or (not overrides.forceCrafterInfo and not overrides.itemInfo) then
         if HasMatch(message, config.exclusions) then
             return nil
         end
 
-        if not HasMatch(message, config.inclusions) then
+        if not requestType then
             return nil
         end
 
@@ -715,7 +729,7 @@ local function GetCrafterForMessage(customer, message, overrides)
                 CraftScan.DB.characters[crafterInfo.crafter].professions[crafterInfo.profID]
             if IsScanningEnabled(crafterInfo) then
                 local recipeInfo = GetRequestID(message, crafterInfo, profConfig)
-                return crafterInfo, itemID, recipeInfo
+                    return crafterInfo, itemID, recipeInfo, requestType
             end
         end
 
@@ -740,7 +754,7 @@ local function GetCrafterForMessage(customer, message, overrides)
                 if pConfig.parentProfID == crafterInfo.parentProfID then
                     local recipeInfo = GetRequestID(message, crafterInfo, pConfig)
                     if recipeInfo then
-                        return { crafter = crafterInfo.crafter, profID = pID }, nil, recipeInfo
+                        return { crafter = crafterInfo.crafter, profID = pID }, nil, recipeInfo, requestType
                     end
 
                     if pID > maxProfID then
@@ -763,7 +777,7 @@ local function GetCrafterForMessage(customer, message, overrides)
         then
             local crafterInfo, itemID, recipeInfo = FindBestCrafter(crafterInfo)
             if crafterInfo then
-                return crafterInfo, itemID, recipeInfo
+                return crafterInfo, itemID, recipeInfo, requestType
             end
         end
     end
@@ -771,11 +785,11 @@ local function GetCrafterForMessage(customer, message, overrides)
     if not bestMatch and overrides and overrides.forceCrafterInfo then
         local crafterInfo, itemID, recipeInfo = FindBestCrafter(overrides.forceCrafterInfo)
         if crafterInfo then
-            return crafterInfo, itemID, recipeInfo
+            return crafterInfo, itemID, recipeInfo, requestType
         end
     end
 
-    return bestMatch
+    return bestMatch, nil, nil, requestType
 end
 
 local function ConcatGreetings(lhs, rhs)
@@ -976,7 +990,7 @@ CraftScan.Utils.GetGreeting = GetGreeting
 -- Builds the greeting text for a pending order. Computes alt_craft based on
 -- the *current* logged-in character so the message stays accurate when the
 -- player logs into the crafter character after the notification was created.
-local function BuildRawGreeting(crafterFullName, profID, itemID, itemLink, recipeID)
+local function BuildRawGreeting(crafterFullName, profID, itemID, itemLink, recipeID, requestType)
     local profInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(profID)
     local profConfig = CraftScan.DB.characters[crafterFullName].professions[profID]
     local recipeConfig = recipeID and profConfig.recipes[recipeID] or nil
@@ -997,6 +1011,7 @@ local function BuildRawGreeting(crafterFullName, profID, itemID, itemLink, recip
     local Greeting, FinalGreeting = MakeGreetingBuilder()
     local context = {
         crafter = crafter,
+        craft_type = requestType == REQUEST_TYPE_RECRAFT and REQUEST_TYPE_RECRAFT or REQUEST_TYPE_CRAFT,
         item = itemLink or (itemID and select(2, GetItemInfo(itemID))) or L(LID.GREETING_LINK_BACKUP),
         profession = profInfo.parentProfessionName,
         profession_link = alt_craft and profInfo.parentProfessionName or GetProfessionLink(),
@@ -1058,12 +1073,19 @@ CraftScan.RebuildResponseMessage = function(order)
         return
     end
     local greeting, newAltCraft =
-        BuildRawGreeting(response.crafterFullName, response.professionID, response.itemID, nil, response.recipeID)
+        BuildRawGreeting(
+            response.crafterFullName,
+            response.professionID,
+            response.itemID,
+            nil,
+            response.recipeID,
+            response.request_type
+        )
     response.message = SplitResponse(greeting)
     response.alt_craft = newAltCraft
 end
 
-local function handleResponse(message, customer, crafterInfo, itemID, recipeInfo, item, overrides)
+local function handleResponse(message, customer, crafterInfo, itemID, recipeInfo, requestType, item, overrides)
     -- At this point, we have everything we need to generate a response to the message.
     local itemLink = item and item:GetItemLink() or nil
 
@@ -1095,7 +1117,8 @@ local function handleResponse(message, customer, crafterInfo, itemID, recipeInfo
     local profConfig = CraftScan.DB.characters[crafterInfo.crafter].professions[profID]
 
     local crafter = CraftScan.NameAndRealmToName(crafterInfo.crafter)
-    local greeting, alt_craft = BuildRawGreeting(crafterInfo.crafter, profID, itemID, itemLink, recipeID)
+    local greeting, alt_craft =
+        BuildRawGreeting(crafterInfo.crafter, profID, itemID, itemLink, recipeID, requestType)
 
     if needsResultCallbackOnly then
         -- Erase the persistent state associated with this since it's just a
@@ -1158,6 +1181,7 @@ local function handleResponse(message, customer, crafterInfo, itemID, recipeInfo
     response.recipeID = recipeID
     response.time = now
     response.responseID = responseID
+    response.request_type = requestType or REQUEST_TYPE_CRAFT
     response.greeting_sent = overrides and overrides.greeted or customerStartedInteraction
     if customerStartedInteraction then
         response.customer_answered = true
@@ -1260,7 +1284,8 @@ function CraftScan.OnMessage(event, message, customer, customerGuid, overrides)
         overrides.customerStartedInteraction = true
     end
 
-    local crafterInfo, itemID, recipeInfo = GetCrafterForMessage(customer, message, overrides)
+    local crafterInfo, itemID, recipeInfo, requestType =
+        GetCrafterForMessage(customer, message, overrides)
     if not crafterInfo then
         return false
     end
@@ -1279,13 +1304,22 @@ function CraftScan.OnMessage(event, message, customer, customerGuid, overrides)
         if itemID then
             local item = Item:CreateFromItemID(itemID)
             item:ContinueOnItemLoad(function()
-                handleResponse(message, customer, crafterInfo, itemID, recipeInfo, item, overrides)
+                handleResponse(
+                    message,
+                    customer,
+                    crafterInfo,
+                    itemID,
+                    recipeInfo,
+                    requestType,
+                    item,
+                    overrides
+                )
             end)
             return false
         end
     end
 
-    handleResponse(message, customer, crafterInfo, itemID, recipeInfo, nil, overrides)
+    handleResponse(message, customer, crafterInfo, itemID, recipeInfo, requestType, nil, overrides)
 
     return false
 end

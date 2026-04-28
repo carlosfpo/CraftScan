@@ -8,6 +8,15 @@ end
 CraftScan.Frames = {}
 CraftScan.Utils = {}
 
+function CraftScan.Utils.GetDefaultMatchKeywords()
+    local combined = L(LID.GLOBAL_INCLUSION_DEFAULT)
+    local craftKeywords, recraftKeywords = combined:match('^(.*),%s*([^,]+)%s*$')
+    if craftKeywords and recraftKeywords then
+        return craftKeywords, recraftKeywords
+    end
+    return combined, 'recraft'
+end
+
 function CraftScan.Utils.Contains(array, value)
     for _, v in ipairs(array) do
         if v == value then
@@ -877,8 +886,20 @@ local function doOnce()
         UpgradeRealmStorage()
 
         CraftScan.DB.settings = CraftScan.Utils.saved(CraftScan_DB, 'settings', {})
-        CraftScan.DB.settings.inclusions = CraftScan.DB.settings.inclusions
-            or L(LID.GLOBAL_INCLUSION_DEFAULT)
+        local defaultCraftKeywords, defaultRecraftKeywords =
+            CraftScan.Utils.GetDefaultMatchKeywords()
+        local oldInclusions = CraftScan.DB.settings.inclusions
+        if oldInclusions == nil then
+            CraftScan.DB.settings.inclusions = defaultCraftKeywords
+        elseif
+            CraftScan.DB.settings.recraft_inclusions == nil
+            and oldInclusions == L(LID.GLOBAL_INCLUSION_DEFAULT)
+        then
+            CraftScan.DB.settings.inclusions = defaultCraftKeywords
+        end
+        if CraftScan.DB.settings.recraft_inclusions == nil then
+            CraftScan.DB.settings.recraft_inclusions = defaultRecraftKeywords
+        end
         CraftScan.DB.settings.exclusions = CraftScan.DB.settings.exclusions
             or L(LID.GLOBAL_EXCLUSION_DEFAULT)
 
@@ -903,7 +924,10 @@ local function doOnce()
         CraftScan.UpdateHasMatchStyle()
     else
         CraftScan.DB.settings = {}
-        CraftScan.DB.settings.inclusions = L(LID.GLOBAL_INCLUSION_DEFAULT)
+        local defaultCraftKeywords, defaultRecraftKeywords =
+            CraftScan.Utils.GetDefaultMatchKeywords()
+        CraftScan.DB.settings.inclusions = defaultCraftKeywords
+        CraftScan.DB.settings.recraft_inclusions = defaultRecraftKeywords
         CraftScan.DB.settings.exclusions = L(LID.GLOBAL_EXCLUSION_DEFAULT)
         CraftScan.DB.characters = {}
         CraftScan.DB.listed_orders = {}
